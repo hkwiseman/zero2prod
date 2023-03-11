@@ -1,5 +1,5 @@
-use axum::{routing::{get}, Router, Server};
-use std::{net::SocketAddr};
+use axum::{routing::get, Router, Server};
+use std::net::SocketAddr;
 
 async fn health_check() -> hyper::StatusCode {
     hyper::StatusCode::OK
@@ -14,7 +14,6 @@ pub async fn run() {
         .serve(app.into_make_service())
         .await
         .expect("Failed to start server");
-    
 }
 
 pub fn router() -> Router {
