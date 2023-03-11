@@ -1,14 +1,13 @@
 use axum::{routing::get, Router, Server};
-use std::net::SocketAddr;
 
 async fn health_check() -> hyper::StatusCode {
     hyper::StatusCode::OK
 }
 
-pub async fn run() {
+pub async fn run(address: &str) {
     let app = router();
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
+    let addr = address.parse().unwrap();
 
     Server::bind(&addr)
         .serve(app.into_make_service())
