@@ -16,5 +16,18 @@ name = "zero2prod"
 axum = "0.6.10"
 axum-test-helper = "0.2.0"
 hyper = { version = "0.14.25", features = ["full"] }
-reqwest = "0.11.14"
 tokio = {version = "1.26.0", features = ["full"] }
+serde = {version = "1.0.155", features = ["derive"]}
+
+
+[dependencies.sqlx]
+version = "0.6"
+default-features = false
+features = [
+"runtime-tokio-rustls",
+"macros",
+"postgres",
+"uuid",
+"chrono",
+"migrate"
+]
