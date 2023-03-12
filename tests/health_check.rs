@@ -1,5 +1,6 @@
 use axum_test_helper::TestClient;
-use zero2prod::startup::router;
+use zero2prod::{startup::router, configuration::get_configuration};
+use sqlx::{PgConnection, Connection};
 
 fn spawn_app() -> TestClient {
     let router = router();
@@ -21,6 +22,14 @@ async fn health_check_works() {
 #[tokio::test]
 async fn subscribe_returns_200() {
     let test_client = spawn_app();
+    let configuration = get_configuration().expect("Failed to read configuration");
+
+    let connection_string = configuration.database.connection_string();
+
+    let mut connection = PgConnection::connect(&connection_string)
+        .await
+        .expect("Failed to connect to Postgres.");
+
 
     let body = "name=stan%20lee&email=excelsior123%40gmail.com";
     let response = test_client
@@ -31,6 +40,14 @@ async fn subscribe_returns_200() {
         .await;
 
     assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("Failed to fetch saved subscription");
+
+    assert_eq!(saved.email, "excelsior123@gmail.com");
+    assert_eq!(saved.name, "stan lee");
 }
 
 #[tokio::test]
