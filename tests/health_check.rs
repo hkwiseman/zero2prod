@@ -1,9 +1,11 @@
-use std::net::{TcpListener, SocketAddr};
+use std::net::{SocketAddr, TcpListener};
 
-use sqlx::{PgPool, PgConnection, Connection, Executor};
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use zero2prod::{configuration::{get_configuration, DatabaseSettings}, routes::SubscribeForm};
-
+use zero2prod::{
+    configuration::{get_configuration, DatabaseSettings},
+    routes::SubscribeForm,
+};
 
 pub struct TestApp {
     pub address: SocketAddr,
@@ -15,8 +17,6 @@ async fn spawn_app() -> TestApp {
 
     configuration.database.database_name = Uuid::new_v4().to_string();
 
-
-
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port");
     let addr = listener.local_addr().unwrap();
 
@@ -24,14 +24,12 @@ async fn spawn_app() -> TestApp {
     conf.database.database_name = uuid::Uuid::new_v4().to_string();
     let pool = config_db(&conf.database).await;
 
-
-    let server =
-        zero2prod::startup::run(listener, pool.clone());
+    let server = zero2prod::startup::run(listener, pool.clone());
 
     tokio::spawn(server);
     TestApp {
         address: addr,
-        db_pool: pool
+        db_pool: pool,
     }
 }
 
@@ -60,8 +58,8 @@ async fn health_check_works() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
 
-
-    let response = client.get(format!("http://{}/health_check", app.address))
+    let response = client
+        .get(format!("http://{}/health_check", app.address))
         .send()
         .await
         .expect("Failed to execute request");

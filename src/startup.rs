@@ -1,6 +1,6 @@
 use axum::{routing::get, routing::post, Router, Server};
 use sqlx::PgPool;
-use std::{sync::Arc, net::TcpListener};
+use std::{net::TcpListener, sync::Arc};
 
 pub struct AppState {
     pub connection: PgPool,
@@ -8,8 +8,8 @@ pub struct AppState {
 pub async fn run(listener: TcpListener, connection: PgPool) {
     let app = router(connection);
 
-
-    Server::from_tcp(listener).expect("Server failed to start.")
+    Server::from_tcp(listener)
+        .expect("Server failed to start.")
         .serve(app.into_make_service())
         .await
         .expect("Failed to start server");
