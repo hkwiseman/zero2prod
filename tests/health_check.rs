@@ -1,54 +1,93 @@
-use axum_test_helper::TestClient;
-use sqlx::PgPool;
-use zero2prod::{configuration::get_configuration, routes::SubscribeForm, startup::router};
+use std::net::{TcpListener, SocketAddr};
 
-async fn spawn_app() -> TestClient {
-    let configuration = get_configuration().expect("Failed to read configuration");
+use sqlx::{PgPool, PgConnection, Connection, Executor};
+use uuid::Uuid;
+use zero2prod::{configuration::{get_configuration, DatabaseSettings}, routes::SubscribeForm};
 
-    let connection_string = configuration.database.connection_string();
 
-    let connection = PgPool::connect(&connection_string)
+pub struct TestApp {
+    pub address: SocketAddr,
+    pub db_pool: PgPool,
+}
+
+async fn spawn_app() -> TestApp {
+    let mut configuration = get_configuration().expect("Failed to read configuration");
+
+    configuration.database.database_name = Uuid::new_v4().to_string();
+
+
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port");
+    let addr = listener.local_addr().unwrap();
+
+    let mut conf = get_configuration().expect("Failed to read config");
+    conf.database.database_name = uuid::Uuid::new_v4().to_string();
+    let pool = config_db(&conf.database).await;
+
+
+    let server =
+        zero2prod::startup::run(listener, pool.clone());
+
+    tokio::spawn(server);
+    TestApp {
+        address: addr,
+        db_pool: pool
+    }
+}
+
+async fn config_db(config: &DatabaseSettings) -> PgPool {
+    let mut conn = PgConnection::connect(&config.connection_string_without_db())
         .await
-        .expect("Failed to connect to Postgres.");
-    let router = router(connection);
-    let client = TestClient::new(router);
+        .expect("Failed to connect to database");
 
-    client
+    conn.execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+        .await
+        .expect("Unable to create database");
+
+    let pool = PgPool::connect(&config.connection_string())
+        .await
+        .expect("Failed to connect to database");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to migrate a database");
+
+    pool
 }
 
 #[tokio::test]
 async fn health_check_works() {
-    let test_client = spawn_app().await;
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
 
-    let response = test_client.get("/health_check").send().await;
+
+    let response = client.get(format!("http://{}/health_check", app.address))
+        .send()
+        .await
+        .expect("Failed to execute request");
 
     assert!(response.status().is_success());
-    assert_eq!(response.text().await, "");
+    assert_eq!(Some(0), response.content_length());
 }
 
 #[tokio::test]
 async fn subscribe_returns_200() {
-    let test_client = spawn_app().await;
-    let configuration = get_configuration().expect("Failed to read configuration");
-
-    let connection_string = configuration.database.connection_string();
-
-    let connection = PgPool::connect(&connection_string)
-        .await
-        .expect("Failed to connect to Postgres.");
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
 
     let body = "name=stan%20lee&email=excelsior123%40gmail.com";
-    let response = test_client
-        .post("/subscriptions")
+    let response = client
+        .post(format!("http://{}/subscriptions", app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
-        .await;
+        .await
+        .expect("Failed to execute request.");
 
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query_as!(SubscribeForm, "SELECT email, name FROM subscriptions",)
-        .fetch_one(&connection)
+        .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch saved subscription");
 
@@ -58,7 +97,8 @@ async fn subscribe_returns_200() {
 
 #[tokio::test]
 async fn invalid_form_subscribe_returns_400() {
-    let test_client = spawn_app().await;
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
 
     let test_cases = vec![
         ("name=stan%20lee", "missing the email"),
@@ -67,12 +107,13 @@ async fn invalid_form_subscribe_returns_400() {
     ];
 
     for (invalid_body, error_message) in test_cases {
-        let response = test_client
-            .post("/subscriptions")
+        let response = client
+            .post(format!("http://{}/subscriptions", app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
-            .await;
+            .await
+            .expect("Failed to execute request");
 
         assert_eq!(
             422,

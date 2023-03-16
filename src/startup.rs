@@ -1,16 +1,15 @@
 use axum::{routing::get, routing::post, Router, Server};
 use sqlx::PgPool;
-use std::sync::Arc;
+use std::{sync::Arc, net::TcpListener};
 
 pub struct AppState {
     pub connection: PgPool,
 }
-pub async fn run(address: &str, connection: PgPool) {
+pub async fn run(listener: TcpListener, connection: PgPool) {
     let app = router(connection);
 
-    let addr = address.parse().unwrap();
 
-    Server::bind(&addr)
+    Server::from_tcp(listener).expect("Server failed to start.")
         .serve(app.into_make_service())
         .await
         .expect("Failed to start server");
