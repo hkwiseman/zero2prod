@@ -21,7 +21,7 @@ DB_NAME="${POSTGRES_DB:=newsletter}"
 DB_PORT="${POSTGRES_PORT:=5432}"
 
 # Allow to skip container run if a containerized Postgres database is already running
-if [[ -z "${SKIP_DB_RUN}" ]]
+if [[ -z "${SKIP_DOCKER}" ]]
 then
   podman run \
       -e POSTGRES_USER=${DB_USER} \
