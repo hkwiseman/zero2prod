@@ -49,7 +49,7 @@ async fn spawn_app() -> TestApp {
 }
 
 async fn config_db(config: &DatabaseSettings) -> PgPool {
-    let mut conn = PgConnection::connect(&config.connection_string_without_db().expose_secret())
+    let mut conn = PgConnection::connect(config.connection_string_without_db().expose_secret())
         .await
         .expect("Failed to connect to database");
 
