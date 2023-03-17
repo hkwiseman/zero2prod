@@ -20,6 +20,8 @@ pub async fn subscribe(
     State(state): State<Arc<AppState>>,
     Form(subscribe_user): Form<SubscribeForm>,
 ) -> hyper::StatusCode {
+    let request_id = Uuid::new_v4();
+    info!("request_id {} - Adding '{}' '{}' as a new subscriber.", request_id, subscribe_user.name, subscribe_user.email);
     let result = sqlx::query!(
         r#"
             INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -34,11 +36,11 @@ pub async fn subscribe(
     .await;
     match result {
         Ok(_) => {
-            info!("Saved new subscriber details!");
+            info!("request_id {} - Saved new subscriber details!", request_id);
             hyper::StatusCode::OK
         }
         Err(e) => {
-            error!("Failed to execute query: {:?}", e);
+            error!("request_id {} - Failed to execute query: {:?}",request_id, e);
             hyper::StatusCode::INTERNAL_SERVER_ERROR
         }
     }
