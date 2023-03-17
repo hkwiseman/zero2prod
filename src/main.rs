@@ -6,7 +6,7 @@ use zero2prod::startup::run;
 
 #[tokio::main]
 async fn main() {
-
+    tracing_subscriber::fmt::init();
     let configuration = get_configuration().expect("Failed to read configuration.");
     let connection = PgPool::connect(&configuration.database.connection_string())
         .await
