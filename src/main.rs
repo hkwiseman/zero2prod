@@ -6,6 +6,7 @@ use zero2prod::startup::run;
 
 #[tokio::main]
 async fn main() {
+
     let configuration = get_configuration().expect("Failed to read configuration.");
     let connection = PgPool::connect(&configuration.database.connection_string())
         .await
