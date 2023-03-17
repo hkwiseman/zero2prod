@@ -1,14 +1,14 @@
 use std::net::{SocketAddr, TcpListener};
 
+use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
     routes::SubscribeForm,
-    telemetry::{get_subscriber, init_subscriber}
+    telemetry::{get_subscriber, init_subscriber},
 };
-use once_cell::sync::Lazy;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     let default_filter_level = "info".to_string();

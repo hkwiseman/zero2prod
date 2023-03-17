@@ -2,7 +2,7 @@ use crate::startup::AppState;
 use axum::{extract::State, Form};
 use chrono::Utc;
 use serde;
-use sqlx::{PgPool, postgres::PgQueryResult};
+use sqlx::{postgres::PgQueryResult, PgPool};
 use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -22,7 +22,7 @@ pub struct SubscribeForm {
 async fn insert_subscriber(
     pool: &PgPool,
     form: &SubscribeForm,
-    request_id: Uuid
+    request_id: Uuid,
 ) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         r#"
@@ -36,7 +36,6 @@ async fn insert_subscriber(
     )
     .execute(pool)
     .await
-    
 }
 
 #[tracing::instrument(
@@ -52,7 +51,10 @@ pub async fn subscribe(
     Form(subscribe_user): Form<SubscribeForm>,
 ) -> hyper::StatusCode {
     let request_id = Uuid::new_v4();
-    info!("request_id {} - Adding '{}' '{}' as a new subscriber.", request_id, subscribe_user.name, subscribe_user.email);
+    info!(
+        "request_id {} - Adding '{}' '{}' as a new subscriber.",
+        request_id, subscribe_user.name, subscribe_user.email
+    );
     let result = insert_subscriber(&state.connection, &subscribe_user, request_id).await;
     match result {
         Ok(_) => {
@@ -60,7 +62,10 @@ pub async fn subscribe(
             hyper::StatusCode::OK
         }
         Err(e) => {
-            error!("request_id {} - Failed to execute query: {:?}",request_id, e);
+            error!(
+                "request_id {} - Failed to execute query: {:?}",
+                request_id, e
+            );
             hyper::StatusCode::INTERNAL_SERVER_ERROR
         }
     }
